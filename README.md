@@ -18,8 +18,8 @@ I won't recommend running it as a build phase, but rather checking the generated
 
 You can execute this script by running:
 
-```swift
-./PATH_TO_YOUR_SCRIPT/fetch_licenses.swift Cartfile.resolved  OUTPUT_DIR
+```bash
+$ ./PATH_TO_YOUR_SCRIPT/fetch_licenses.swift Cartfile.resolved  OUTPUT_DIR
 ```
 
 It takes 2 simple arguments:
@@ -28,3 +28,20 @@ It takes 2 simple arguments:
 |:---|:---|
 |Cartfile.resolved|Path to your Cartfile.resolved|
 |OUTPUT_DIR|Path to the directory you want the Licenses.plist saved to|
+
+### Example output
+
+If everything goes well you will see something like:
+
+```bash
+$ ./fetch_licenses.swift ../Git2Go/Cartfile.resolved ../Git2Go/
+Fetching licenses for Mantle/Mantle ...
+Fetching licenses for nerdishbynature/OpenSSL ...
+Fetching licenses for ReactiveCocoa/ReactiveCocoa ...
+Fetching licenses for soffes/SSKeychain ...
+Fetching licenses for nerdishbynature/ios-snapshot-test-case ...
+Fetching licenses for libgit2/objective-git ...
+Fetching licenses for nerdishbynature/ocmock ...
+Fetching licenses for octokit/octokit.objc ...
+Super awesome! Your licenses are at ../Git2Go/Licenses.plist 🍻
+```

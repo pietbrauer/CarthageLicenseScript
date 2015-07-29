@@ -37,27 +37,26 @@ struct CartfileEntry: Printable {
     func fetchLicense(outputDir: String) -> String {
         var license = ""
         let urls = licenseURLStrings.map({ NSURL(string: $0)! })
+        println("Fetching licenses for \(name) ...")
         for url in urls {
             let semaphore = dispatch_semaphore_create(0)
 
             let request = NSURLRequest(URL: url)
             let task = NSURLSession.sharedSession().dataTaskWithRequest(request, completionHandler: { (data, response, error) -> Void in
+                dispatch_semaphore_signal(semaphore)
                 if let response = response as? NSHTTPURLResponse {
                     if response.statusCode == 404 {
-                        println("Wasn't \(url)")
+                        return
                     }
                 }
 
                 let string = NSString(data: data, encoding: NSUTF8StringEncoding)
                 if let string = string {
-                    if string != "{\"error\":\"Not Found\"}" {
-                        license = string as String
-                    }
+                  license = string as String
                 }
-                dispatch_semaphore_signal(semaphore);
             })
             task.resume()
-            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER)
         }
 
         return license
@@ -75,9 +74,10 @@ if Process.arguments.count == 3 {
 
     if let content = content {
         let entries = parseResolvedCartfile(content)
-        let licenses = entries.map { ["title": $0.name, "text": $0.fetchLicense(outputDirectory)] }
+        let licenses = entries.map { ["title": $0.projectName, "text": $0.fetchLicense(outputDirectory)] }
         let fileName = outputDirectory.stringByAppendingPathComponent("Licenses.plist")
         (licenses as NSArray).writeToFile(fileName, atomically: true)
+        println("Super awesome! Your licenses are at \(fileName) 🍻")
     }
 } else {
     println("USAGE: ./fetch_licenses Cartfile.resolved output_directory/")
