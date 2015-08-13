@@ -12,14 +12,13 @@ func parseResolvedCartfile(contents: String) -> [CartfileEntry] {
 }
 
 struct CartfileEntry: Printable {
-    let name: String, version: String
+    let name: String
     var license: String?
 
     init(line: String) {
         let line = line.stringByReplacingOccurrencesOfString("github ", withString: "")
         let components = line.componentsSeparatedByString("\" \"")
         name = components[0].stringByReplacingOccurrencesOfString("\"", withString: "")
-        version = components[1].stringByReplacingOccurrencesOfString("\"", withString: "")
     }
 
     var projectName: String {
@@ -27,33 +26,34 @@ struct CartfileEntry: Printable {
     }
 
     var description: String {
-        return join(" ", [name, version] + licenseURLStrings)
+        return join(" ", [name])
     }
 
-    var licenseURLStrings: [String] {
-        return ["Source/License.txt", "License.md", "LICENSE.md", "LICENSE", "License.txt"].map { "https://github.com/\(self.name)/raw/\(self.version)/\($0)" }
-    }
-
-    func fetchLicense(outputDir: String) -> String {
+    func fetchLicense() -> String {
         var license = ""
-        let urls = licenseURLStrings.map({ NSURL(string: $0)! })
-        println("Fetching licenses for \(name) ...")
-        for url in urls {
+        let url = NSURL(string: "https://api.github.com/repos/\(name)/license")
+        if let url = url {
+            println("Fetching license for \(name) ...")
             let semaphore = dispatch_semaphore_create(0)
 
-            let request = NSURLRequest(URL: url)
+            let request = NSMutableURLRequest(URL: url)
+            request.setValue("application/vnd.github.drax-preview+json", forHTTPHeaderField: "Accept")
             let task = NSURLSession.sharedSession().dataTaskWithRequest(request, completionHandler: { (data, response, error) -> Void in
-                dispatch_semaphore_signal(semaphore)
+                let json = NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments, error: nil) as? [String: AnyObject]
                 if let response = response as? NSHTTPURLResponse {
-                    if response.statusCode == 404 {
-                        return
+                    if response.statusCode != 200 {
+                        if let json = json, message = json["message"] as? String {
+                            println("\(message)")
+                        }
                     }
                 }
-
-                let string = NSString(data: data, encoding: NSUTF8StringEncoding)
-                if let string = string {
-                  license = string as String
+                if let json = json,
+                    content = json["content"] as? String,
+                    decodedData = NSData(base64EncodedString: content, options: .IgnoreUnknownCharacters),
+                    decodedString = NSString(data: decodedData, encoding: NSUTF8StringEncoding) {
+                        license = decodedString as String
                 }
+                dispatch_semaphore_signal(semaphore)
             })
             task.resume()
             dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER)
@@ -74,7 +74,7 @@ if Process.arguments.count == 3 {
 
     if let content = content {
         let entries = parseResolvedCartfile(content)
-        let licenses = entries.map { ["title": $0.projectName, "text": $0.fetchLicense(outputDirectory)] }
+        let licenses = entries.map { ["title": $0.projectName, "text": $0.fetchLicense()] }
         let fileName = outputDirectory.stringByAppendingPathComponent("Licenses.plist")
         (licenses as NSArray).writeToFile(fileName, atomically: true)
         println("Super awesome! Your licenses are at \(fileName) 🍻")
