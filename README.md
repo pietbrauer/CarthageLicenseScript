@@ -1,7 +1,7 @@
 # Download Licenses for Carthage
 
 ![Carthage Compatibility](https://img.shields.io/badge/Carthage-✔-f2a77e.svg?style=flat)
-![Swift](https://img.shields.io/badge/Swift-1.2-orange.svg)
+![Swift](https://img.shields.io/badge/Swift-2-orange.svg)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)
 ![Platform](https://img.shields.io/badge/Platform-OS X-lightgrey.svg)
 [![@pietbrauer](https://img.shields.io/badge/Contact-%40pietbrauer-blue.svg)](https://twitter.com/pietbrauer)
