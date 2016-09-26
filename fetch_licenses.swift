@@ -1,13 +1,14 @@
 #!/usr/bin/env xcrun swift
+
 import Cocoa
 
 func loadResolvedCartfile(file: String) throws -> String {
-    let string = try String(contentsOfFile: file, encoding: NSUTF8StringEncoding)
+    let string = try String(contentsOfFile: file, encoding: String.Encoding.utf8)
     return string
 }
 
 func parseResolvedCartfile(contents: String) -> [CartfileEntry] {
-    let lines = contents.componentsSeparatedByString("\n")
+    let lines = contents.components(separatedBy: "\n")
     return lines.filter({ $0.utf16.count > 0 }).map { CartfileEntry(line: $0) }
 }
 
@@ -16,18 +17,18 @@ struct CartfileEntry: CustomStringConvertible {
     var license: String?
 
     init(line: String) {
-        let line = line.stringByReplacingOccurrencesOfString("github ", withString: "")
-        let components = line.componentsSeparatedByString("\" \"")
-        name = components[0].stringByReplacingOccurrencesOfString("\"", withString: "")
-        version = components[1].stringByReplacingOccurrencesOfString("\"", withString: "")
+        let line = line.replacingOccurrences(of: "github ", with: "")
+        let components = line.components(separatedBy: "\" \"")
+        name = components[0].replacingOccurrences(of: "\"", with: "")
+        version = components[1].replacingOccurrences(of: "\"", with: "")
     }
 
     var projectName: String {
-        return name.componentsSeparatedByString("/")[1]
+        return name.components(separatedBy: "/")[1]
     }
 
     var description: String {
-        return ([name, version] + licenseURLStrings).joinWithSeparator(" ")
+        return ([name, version] + licenseURLStrings).joined(separator: " ")
     }
 
     var licenseURLStrings: [String] {
@@ -36,43 +37,44 @@ struct CartfileEntry: CustomStringConvertible {
 
     func fetchLicense(outputDir: String) -> String {
         var license = ""
-        let urls = licenseURLStrings.map({ NSURL(string: $0)! })
+        let urls = licenseURLStrings.map({ URL(string: $0)! })
         print("Fetching licenses for \(name) ...")
         for url in urls {
-            let semaphore = dispatch_semaphore_create(0)
+            let semaphore = DispatchSemaphore(value: 0)
 
-            let request = NSURLRequest(URL: url)
-            let task = NSURLSession.sharedSession().dataTaskWithRequest(request, completionHandler: { (data, response, error) -> Void in
-                dispatch_semaphore_signal(semaphore)
-                if let response = response as? NSHTTPURLResponse {
+            let request = URLRequest(url: url)
+            let task = URLSession.shared.dataTask(with: request, completionHandler: { (data, response, error) -> Void in
+                semaphore.signal()
+                if let response = response as? HTTPURLResponse {
                     if response.statusCode == 404 {
                         return
                     }
                 }
 
-                let string = NSString(data: data!, encoding: NSUTF8StringEncoding)
+                let string = String(data: data!, encoding: .utf8)
                 if let string = string {
                     license = string as String
                 }
             })
             task.resume()
-            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER)
+            _ = semaphore.wait(timeout: .distantFuture)
         }
 
         return license
     }
 }
 
-if Process.arguments.count == 3 {
-    let resolvedCartfile = Process.arguments[1]
-    let outputDirectory = Process.arguments[2]
+var c = 0;
+if CommandLine.arguments.count == 3 {
+    let resolvedCartfile = CommandLine.arguments[1]
+    let outputDirectory = CommandLine.arguments[2]
     var error: NSError?
     do {
-        let content = try loadResolvedCartfile(resolvedCartfile)
-        let entries = parseResolvedCartfile(content)
-        let licenses = entries.map { ["title": $0.projectName, "text": $0.fetchLicense(outputDirectory)] }
-        let fileName = (outputDirectory as NSString).stringByAppendingPathComponent("Licenses.plist")
-        (licenses as NSArray).writeToFile(fileName, atomically: true)
+        let content = try loadResolvedCartfile(file: resolvedCartfile)
+        let entries = parseResolvedCartfile(contents: content)
+        let licenses = entries.map { ["title": $0.projectName, "text": $0.fetchLicense(outputDir: outputDirectory)] }
+        let fileName = (outputDirectory as NSString).appendingPathComponent("Licenses.plist")
+        (licenses as NSArray).write(toFile: fileName, atomically: true)
         print("Super awesome! Your licenses are at \(fileName) 🍻")
     } catch {
         print(error)
@@ -80,3 +82,4 @@ if Process.arguments.count == 3 {
 } else {
     print("USAGE: ./fetch_licenses Cartfile.resolved output_directory/")
 }
+
