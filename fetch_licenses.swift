@@ -32,7 +32,7 @@ struct CartfileEntry: CustomStringConvertible {
     }
 
     var licenseURLStrings: [String] {
-        return ["Source/License.txt", "License.md", "LICENSE.md", "LICENSE", "License.txt"].map { "https://github.com/\(self.name)/raw/\(self.version)/\($0)" }
+        return ["Source/License.txt", "License.md", "LICENSE.md", "LICENSE", "License.txt", "LICENSE.txt"].map { "https://github.com/\(self.name)/raw/\(self.version)/\($0)" }
     }
 
     func fetchLicense(outputDir: String) -> String {
