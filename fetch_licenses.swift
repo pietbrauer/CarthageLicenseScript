@@ -62,6 +62,40 @@ struct CartfileEntry: CustomStringConvertible {
 
         return license
     }
+
+    func fetchLicenseName() -> String {
+        var license = ""
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        print("Fetching license name for \(name) ...")
+        
+        var request = URLRequest(url: URL(string: "https://api.github.com/repos/ReactiveX/RxSwift")!)
+        request.addValue("application/vnd.github.drax-preview+json", forHTTPHeaderField: "Accept")
+        let task = URLSession.shared.dataTask(with: request, completionHandler: { (data, response, error) -> Void in
+            
+            if let response = response as? HTTPURLResponse {
+                if response.statusCode == 404 {
+                    return
+                }
+            }
+            
+            do {
+                let json = try JSONSerialization.jsonObject(with: data!, options: .allowFragments) as! [String:Any]
+                if let info = json["license"] as? [String: Any] {
+                    license = info["name"] as? String ?? ""
+                }
+            } catch let error as NSError {
+                print(error)
+            }
+            
+            semaphore.signal()
+        })
+        task.resume()
+        
+        
+        _ = semaphore.wait(timeout: .distantFuture)
+        return license
+    }
 }
 
 var c = 0;
@@ -72,7 +106,7 @@ if CommandLine.arguments.count == 3 {
     do {
         let content = try loadResolvedCartfile(file: resolvedCartfile)
         let entries = parseResolvedCartfile(contents: content)
-        let licenses = entries.map { ["title": $0.projectName, "text": $0.fetchLicense(outputDir: outputDirectory)] }
+        let licenses = entries.map { ["title": $0.projectName, "text": $0.fetchLicense(outputDir: outputDirectory), "license": $0.fetchLicenseName()] }
         let fileName = (outputDirectory as NSString).appendingPathComponent("Licenses.plist")
         (licenses as NSArray).write(toFile: fileName, atomically: true)
         print("Super awesome! Your licenses are at \(fileName) 🍻")
