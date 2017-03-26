@@ -69,7 +69,7 @@ struct CartfileEntry: CustomStringConvertible {
         
         print("Fetching license name for \(name) ...")
         
-        var request = URLRequest(url: URL(string: "https://api.github.com/repos/ReactiveX/RxSwift")!)
+        var request = URLRequest(url: URL(string: "https://api.github.com/repos/\(self.name)")!)
         request.addValue("application/vnd.github.drax-preview+json", forHTTPHeaderField: "Accept")
         let task = URLSession.shared.dataTask(with: request, completionHandler: { (data, response, error) -> Void in
             
@@ -78,7 +78,7 @@ struct CartfileEntry: CustomStringConvertible {
                     return
                 }
             }
-            
+
             do {
                 let json = try JSONSerialization.jsonObject(with: data!, options: .allowFragments) as! [String:Any]
                 if let info = json["license"] as? [String: Any] {
