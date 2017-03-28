@@ -28,48 +28,17 @@ struct CartfileEntry: CustomStringConvertible {
     }
 
     var description: String {
-        return ([name, version] + licenseURLStrings).joined(separator: " ")
+        return ([name, version]).joined(separator: " ")
     }
-
-    var licenseURLStrings: [String] {
-        return ["Source/License.txt", "License.md", "LICENSE.md", "LICENSE", "License.txt", "LICENSE.txt"].map { "https://github.com/\(self.name)/raw/\(self.version)/\($0)" }
-    }
-
-    func fetchLicense(outputDir: String) -> String {
-        var license = ""
-        let urls = licenseURLStrings.map({ URL(string: $0)! })
-        print("Fetching licenses for \(name) ...")
-        for url in urls {
-            let semaphore = DispatchSemaphore(value: 0)
-
-            let request = URLRequest(url: url)
-            let task = URLSession.shared.dataTask(with: request, completionHandler: { (data, response, error) -> Void in
-                semaphore.signal()
-                if let response = response as? HTTPURLResponse {
-                    if response.statusCode == 404 {
-                        return
-                    }
-                }
-
-                let string = String(data: data!, encoding: .utf8)
-                if let string = string {
-                    license = string as String
-                }
-            })
-            task.resume()
-            _ = semaphore.wait(timeout: .distantFuture)
-        }
-
-        return license
-    }
-
-    func fetchLicenseName() -> String {
-        var license = ""
+    
+    func fetchLicense() -> (String, String) {
+        var licenseName = ""
+        var licenseContent = ""
         let semaphore = DispatchSemaphore(value: 0)
         
         print("Fetching license name for \(name) ...")
         
-        var request = URLRequest(url: URL(string: "https://api.github.com/repos/\(self.name)")!)
+        var request = URLRequest(url: URL(string: "https://api.github.com/repos/\(self.name)/license")!)
         request.addValue("application/vnd.github.drax-preview+json", forHTTPHeaderField: "Accept")
         let task = URLSession.shared.dataTask(with: request, completionHandler: { (data, response, error) -> Void in
             
@@ -82,7 +51,14 @@ struct CartfileEntry: CustomStringConvertible {
             do {
                 let json = try JSONSerialization.jsonObject(with: data!, options: .allowFragments) as! [String:Any]
                 if let info = json["license"] as? [String: Any] {
-                    license = info["name"] as? String ?? ""
+                    licenseName = info["name"] as? String ?? ""
+                }
+                if let content = json["content"] as? String {
+                    let normalized = content.replacingOccurrences(of: "\n", with: "")
+                    
+                    if let decodedData = Data(base64Encoded: normalized, options:NSData.Base64DecodingOptions(rawValue: 0)), let decodedString = String(data: decodedData, encoding: String.Encoding.utf8) {
+                        licenseContent = decodedString
+                    }
                 }
             } catch let error as NSError {
                 print(error)
@@ -94,7 +70,7 @@ struct CartfileEntry: CustomStringConvertible {
         
         
         _ = semaphore.wait(timeout: .distantFuture)
-        return license
+        return (licenseName, licenseContent)
     }
 }
 
@@ -106,7 +82,10 @@ if CommandLine.arguments.count == 3 {
     do {
         let content = try loadResolvedCartfile(file: resolvedCartfile)
         let entries = parseResolvedCartfile(contents: content)
-        let licenses = entries.map { ["title": $0.projectName, "text": $0.fetchLicense(outputDir: outputDirectory), "license": $0.fetchLicenseName()] }
+        let licenses = entries.map({ (entry: CartfileEntry)->[String: Any] in
+            let (licenseName, licenseContent) = entry.fetchLicense()
+            return ["title": entry.projectName, "text": licenseContent, "license": licenseName]
+        })
         let fileName = (outputDirectory as NSString).appendingPathComponent("Licenses.plist")
         (licenses as NSArray).write(toFile: fileName, atomically: true)
         print("Super awesome! Your licenses are at \(fileName) 🍻")
