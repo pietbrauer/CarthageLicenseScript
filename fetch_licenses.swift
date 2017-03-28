@@ -44,6 +44,7 @@ struct CartfileEntry: CustomStringConvertible {
             
             if let response = response as? HTTPURLResponse {
                 if response.statusCode == 404 {
+                    semaphore.signal()
                     return
                 }
             }
