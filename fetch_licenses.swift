@@ -20,7 +20,7 @@ struct CartfileEntry: CustomStringConvertible {
         let line = line.replacingOccurrences(of: "github ", with: "")
         let components = line.components(separatedBy: "\" \"")
         name = components[0].replacingOccurrences(of: "\"", with: "")
-        version = components[1].replacingOccurrences(of: "\"", with: "")
+        version = components.count > 1 ? components[1].replacingOccurrences(of: "\"", with: "") : ""
     }
 
     var projectName: String {
