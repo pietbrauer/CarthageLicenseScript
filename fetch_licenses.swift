@@ -76,13 +76,16 @@ struct CartfileEntry: CustomStringConvertible {
 }
 
 var c = 0;
-if CommandLine.arguments.count == 3 {
-    let resolvedCartfile = CommandLine.arguments[1]
-    let outputDirectory = CommandLine.arguments[2]
+if CommandLine.arguments.count >= 3 {
+    let outputDirectory = CommandLine.arguments[CommandLine.arguments.count-1]
     var error: NSError?
     do {
-        let content = try loadResolvedCartfile(file: resolvedCartfile)
-        let entries = parseResolvedCartfile(contents: content)
+        var entries: [CartfileEntry] = []
+        for i in 1 ... CommandLine.arguments.count-2 {
+            let content = try loadResolvedCartfile(file: CommandLine.arguments[i])
+            let fileEntries = parseResolvedCartfile(contents: content)
+            entries.append(contentsOf: fileEntries.filter({!entries.map({$0.name}).contains($0.name)}))
+        }
         let licenses = entries.map({ (entry: CartfileEntry)->[String: Any] in
             let (licenseName, licenseContent) = entry.fetchLicense()
             return ["title": entry.projectName, "text": licenseContent, "license": licenseName]
