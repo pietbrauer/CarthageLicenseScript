@@ -9,7 +9,7 @@ func loadResolvedCartfile(file: String) throws -> String {
 
 func parseResolvedCartfile(contents: String) -> [CartfileEntry] {
     let lines = contents.components(separatedBy: "\n")
-    return lines.filter({ $0.utf16.count > 0 }).map { CartfileEntry(line: $0) }
+    return lines.filter({ $0.utf16.count > 0 && $0.hasPrefix("github") }).map { CartfileEntry(line: $0) }
 }
 
 struct CartfileEntry: CustomStringConvertible {
